@@ -1,5 +1,63 @@
+from socket import AF_INET, socket, SOCK_STREAM
+from threading import Thread
 import pygame
 
+data = ""
+usernum = ""
+current_room = 0
+
+
+
+# get info from the server. used to get messages.
+def receive():
+    while True:
+        try:
+            msg = client_socket.recv(BUFFER_SIZE).decode("utf8")  # decode msg from other clients
+        except OSError:
+            break
+
+
+def send(event=None):  # binder passes event
+    msg = data
+    username = usernum
+    if msg == "{quit}":  # check if the user decides to quit, if so, clean up
+        client_socket.send(bytes(username + " terminated their client (thread)", "utf8"))
+        client_socket.close()  # closes client thread on server.
+        return
+    client_socket.send(bytes(username + ": " + msg, "utf8"))  # otherwise, send message to server, let
+    # server handle our message.
+
+# send quit message to the server
+def on_closing(event=None):
+    # Send server quit message.
+    global data
+    data = "{quit}"
+    send()
+
+def set_room():
+    global current_room
+    current_room = "1"
+    client_socket.send(bytes("/" + current_room, "utf8"))   # send msg to server to change our room
+    print("Joining room " + str(current_room) + "...")  # tell user new room
+
+# Socket with given server parameters.
+HOST = "127.0.0.1"
+PORT = 3005
+BUFFER_SIZE = 1024
+ADDR = (HOST, PORT)
+
+client_socket = socket(AF_INET, SOCK_STREAM)
+client_socket.connect(ADDR)
+
+# get number of rooms from the server and list them for the client
+first_msg = client_socket.recv(BUFFER_SIZE).decode("utf8")
+number_of_rooms = int(first_msg)
+print(number_of_rooms)
+
+set_room()
+
+
+# game code
 pygame.init()
 FPS = 60
 WIDTH, HEIGHT = 700, 500
