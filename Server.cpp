@@ -56,6 +56,7 @@ public:
 		// Semaphore generated on each socket thread by referencing port number as the name.
 		Semaphore clientBlock(stringPort);
 
+		// Move top two lines into the try block to see error message
 
 		try {
 			// Attempt to gather bytestream data.
@@ -72,6 +73,7 @@ public:
 				if (socketResult == 0)	break;
 
 				std::string recv = data.ToString();
+				std::cout << recv << std::endl; // print data to console
 				if(recv == "shutdown\n") {
 					// client wait outside critical section
 					clientBlock.Wait();
@@ -112,6 +114,9 @@ public:
 				clientBlock.Signal();
 			}
 		} 
+		// catch (...) {
+		// 	// Catch all exceptions
+		// }
 		// catch any exceptions by strings 
 		catch(std::string &s) {
 			std::cout << s << std::endl;
@@ -121,6 +126,7 @@ public:
 			std::cout << "A client has abruptly quit their messenger app!" << std::endl;
 		}
 		std::cout << "A client has left!" << std::endl;
+		return 0;
 	}
 };
 
@@ -201,6 +207,9 @@ public:
 				std::cout << "Server has shut down!" << std::endl;
 				// Exit with exception thrown.
 				return terminationException;
+			}
+			catch (...) {
+
 			}
         }
     }

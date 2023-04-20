@@ -5,26 +5,31 @@ import pygame
 data = ""
 usernum = ""
 current_room = 0
-
-
+isP1 = True
+isP2 = False
+otherPMove = ""
+sendPMove = ""
 
 # get info from the server. used to get messages.
 def receive():
     while True:
         try:
             msg = client_socket.recv(BUFFER_SIZE).decode("utf8")  # decode msg from other clients
+            print(msg)
+            global otherPMove
+            otherPMove = msg
         except OSError:
             break
 
 
 def send(event=None):  # binder passes event
-    msg = data
+    msg = sendPMove
     username = usernum
     if msg == "{quit}":  # check if the user decides to quit, if so, clean up
         client_socket.send(bytes(username + " terminated their client (thread)", "utf8"))
         client_socket.close()  # closes client thread on server.
         return
-    client_socket.send(bytes(username + ": " + msg, "utf8"))  # otherwise, send message to server, let
+        client_socket.send(bytes(msg, "utf8"))
     # server handle our message.
 
 # send quit message to the server
@@ -55,6 +60,9 @@ number_of_rooms = int(first_msg)
 print(number_of_rooms)
 
 set_room()
+
+receive_thread = Thread(target=receive)
+receive_thread.start()
 
 
 # game code
@@ -166,15 +174,42 @@ def handle_collision(ball, p1, p2):
                 ball.y_velocity = -1 * y_velocity
 
 def handle_paddle_movement(keys, p1, p2):
-    if keys[pygame.K_w] and p1.y - p1.VELOCITY >= 0:
-        p1.move(up=True)
-    elif keys[pygame.K_s] and p1.y + p1.VELOCITY + p1.height <= HEIGHT:
-        p1.move(up=False)
-    
-    if keys[pygame.K_UP] and p2.y - p2.VELOCITY >= 0:
-        p2.move(up=True)
-    elif keys[pygame.K_DOWN] and p2.y + p2.VELOCITY + p2.height <= HEIGHT:
-        p2.move(up=False)
+    global sendPMove
+    if isP1:
+        if keys[pygame.K_w] and p1.y - p1.VELOCITY >= 0:
+            p1.move(up=True)
+            sendPMove = "up"
+            send()
+        elif keys[pygame.K_s] and p1.y + p1.VELOCITY + p1.height <= HEIGHT:
+            p1.move(up=False)
+            sendPMove = "down"
+            send()
+        else:
+            sendPMove = ""
+            send()
+
+        if otherPMove == "up" and p2.y - p2.VELOCITY >= 0:
+            p2.move(up=True)
+        elif otherPMove == "down" and p2.y + p2.VELOCITY + p2.height <= HEIGHT:
+            p2.move(up=False)
+
+    if isP2:
+        if otherPMove == "up" and p1.y - p1.VELOCITY >= 0:
+            p1.move(up=True)
+        elif otherPMove == "down" and p1.y + p1.VELOCITY + p1.height <= HEIGHT:
+            p1.move(up=False)
+
+        if keys[pygame.K_w] and p2.y - p2.VELOCITY >= 0:
+            p2.move(up=True)
+            sendPMove = "up"
+            send()
+        elif keys[pygame.K_s] and p2.y + p2.VELOCITY + p2.height <= HEIGHT:
+            p2.move(up=False)
+            sendPMove = "down"
+            send()
+        else:
+            sendPMove = ""
+            send()
 
 def main():
     run = True
