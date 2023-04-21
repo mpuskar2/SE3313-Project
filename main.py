@@ -9,6 +9,10 @@ isP2 = False
 run = True
 otherPMove = ""
 sendPMove = ""
+ballx = 0
+bally = 0
+p1score = 0
+p2score = 0
 
 # Receive data from the server
 def receive():
@@ -16,19 +20,30 @@ def receive():
         global isP1, isP2
         try:
             data = client_socket.recv(BUFFER_SIZE).decode("utf8")  # Decode data from other client
-            if data == "p1": # If p1 is received, this client will be p1
+            arr = data.split(',')
+            if arr[0] == "p1": # If p1 is received, this client will be p1
                 isP1 = True
-            elif data == "p2": # If p2 is received, this client will be p2
+            elif arr[0] == "p2": # If p2 is received, this client will be p2
                 isP2 = True
             global otherPMove
-            otherPMove = data
+            otherPMove = arr[0]
+            if isP2 and arr[0] != "p2":
+                global ballx, bally, p1score, p2score
+                ballx = arr[1]
+                bally = arr[2]
+                p1score = arr[3]
+                p2score = arr[4]
         except OSError:
             break
 
 # Send data to server
 def send(event=None):
     try:
+        global ballx, bally, p1score, p2score
         data = sendPMove
+        if isP1:
+            data += f",{ballx},{bally},{p1score},{p2score}"
+        data += ','
         if close:  # Check if the user decides to quit
             client_socket.send(bytes("shutdown", "utf8"))
             client_socket.close()  # Close client thread on server
@@ -73,7 +88,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 PADDLE_WIDTH, PADDLE_HEIGHT = 20, 100
 BALL_RADIUS = 7
-WINNING_SCORE = 10
+WINNING_SCORE = 5
 
 WINDOW = pygame.display.set_mode((WIDTH, HEIGHT))
 SCORE_FONT = pygame.font.SysFont("Arial", 50)
@@ -187,6 +202,10 @@ def handle_collision(ball, p1, p2):
                 reduction_factor = (p2.height / 2) / ball.MAX_VELOCITY
                 y_velocity = difference_in_y / reduction_factor
                 ball.y_velocity = -1 * y_velocity
+    
+    global ballx, bally
+    ballx = ball.x
+    bally = ball.y
 
 # Handle paddle movement
 def handle_paddle_movement(keys, p1, p2):
@@ -235,7 +254,7 @@ def handle_paddle_movement(keys, p1, p2):
             send()
 
 def main():
-    global run
+    global run, isP1, ballx, bally, p2score, p1score
     # Create paddles, ball and clock
     clock = pygame.time.Clock()
     p1 = Paddle(10, HEIGHT // 2 - PADDLE_HEIGHT // 2, PADDLE_WIDTH, PADDLE_HEIGHT)
@@ -260,16 +279,26 @@ def main():
         # Update movement of ball and paddles
         keys = pygame.key.get_pressed()
         handle_paddle_movement(keys, p1, p2)
-        ball.move()
-        handle_collision(ball, p1, p2)
 
-        # Update score when player scores
-        if ball.x < 0:
-            p2_score += 1
-            ball.reset()
-        elif ball.x > WIDTH:
-            p1_score += 1
-            ball.reset()
+        if isP1:
+            ball.move()
+            handle_collision(ball, p1, p2)
+            # Update score when player scores
+            if ball.x < 0:
+                p2_score += 1
+                p2score = p2_score
+                ball.reset()
+            elif ball.x > WIDTH:
+                p1_score += 1
+                p1score = p1_score
+                ball.reset()
+        else:
+            ball.x = float(ballx)
+            ball.y = float(bally)
+            p2_score = int(p2score)
+            p1_score = int(p1score)
+
+
 
         # Check if someone has won
         won = False
@@ -291,6 +320,8 @@ def main():
             p2.reset()
             p1_score = 0
             p2_score = 0
+            p1score = 0
+            p2score = 0
 
     on_closing()
     pygame.quit()
