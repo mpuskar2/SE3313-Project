@@ -50,19 +50,23 @@ public:
 
     virtual long ThreadMain()
     {
-		// Parse the integer value of the port number to a string.
-		std::string stringPort = std::to_string(port);
 
-		// Semaphore generated on each socket thread by referencing port number as the name.
-		Semaphore clientBlock(stringPort);
 
 		// Move top two lines into the try block to see error message
 
 		try {
+		// Parse the integer value of the port number to a string.
+		std::string stringPort = std::to_string(port);
+
+		// Semaphore generated on each socket thread by referencing port number as the name.
+		//Semaphore clientBlock(stringPort);
+
+
 			// Attempt to gather bytestream data.
 			socket.Read(data);
 
 			std::string chatRoomString = data.ToString();
+			//std::cout << chatRoomString << std::endl; // print data to console
 			chatRoomString = chatRoomString.substr(1, chatRoomString.size() - 1);
 			chatRoomNum = std::stoi(chatRoomString);
 			std::cout << "Current chat room number from socket.Read(): " << chatRoomNum << std::endl;	//send this on first connect
@@ -73,16 +77,16 @@ public:
 				if (socketResult == 0)	break;
 
 				std::string recv = data.ToString();
-				std::cout << recv << std::endl; // print data to console
+				//std::cout << recv << std::endl; // print data to console
 				if(recv == "shutdown\n") {
 					// client wait outside critical section
-					clientBlock.Wait();
+					//clientBlock.Wait();
 
 					//remove threads
 					socketThreadHolder.erase(std::remove(socketThreadHolder.begin(), socketThreadHolder.end(), this), socketThreadHolder.end());
 
 					// Exit critical section
-					clientBlock.Signal();
+					//clientBlock.Signal();
 
 					std::cout<< "A client is shutting off from our server. Erase client!" << std::endl;
 					break;
@@ -100,10 +104,10 @@ public:
 				}
 
 				// Call the semaphore blocking call so that the thread can enter the critical section.
-				clientBlock.Wait();
+				//clientBlock.Wait();
 				for (int i = 0; i < socketThreadHolder.size(); i++) {
 					SocketThread *clientSocketThread = socketThreadHolder[i];
-					if (clientSocketThread->GetChatRoom() == chatRoomNum)
+					if (clientSocketThread->GetChatRoom() == chatRoomNum && this != clientSocketThread)
 					{
 						Socket &clientSocket = clientSocketThread->GetSocket();
 						ByteArray sendBa(recv);
@@ -111,7 +115,7 @@ public:
 					}
 				}
 				// Exit critical section.
-				clientBlock.Signal();
+				//clientBlock.Signal();
 			}
 		} 
 		// catch (...) {
@@ -179,7 +183,7 @@ public:
                 std::cout << "FlexWait/Natural blocking call on client!" <<std::endl;
 
 				//owner semaphore used to block other sempahores
-                Semaphore serverBlock(stringPortNum, 1, true);
+                //Semaphore serverBlock(stringPortNum, 1, true);
 				// client receives # rooms thru the socket (server)
                 std::string allChats = std::to_string(rooms) + '\n';
 				// Byte array conversion for number of chats.

@@ -15,7 +15,6 @@ def receive():
     while True:
         try:
             msg = client_socket.recv(BUFFER_SIZE).decode("utf8")  # decode msg from other clients
-            print(msg)
             global otherPMove
             otherPMove = msg
         except OSError:
@@ -29,7 +28,7 @@ def send(event=None):  # binder passes event
         client_socket.send(bytes(username + " terminated their client (thread)", "utf8"))
         client_socket.close()  # closes client thread on server.
         return
-        client_socket.send(bytes(msg, "utf8"))
+    client_socket.send(bytes(msg, "utf8"))
     # server handle our message.
 
 # send quit message to the server
@@ -185,7 +184,7 @@ def handle_paddle_movement(keys, p1, p2):
             sendPMove = "down"
             send()
         else:
-            sendPMove = ""
+            sendPMove = "n"
             send()
 
         if otherPMove == "up" and p2.y - p2.VELOCITY >= 0:
@@ -208,7 +207,7 @@ def handle_paddle_movement(keys, p1, p2):
             sendPMove = "down"
             send()
         else:
-            sendPMove = ""
+            sendPMove = "n"
             send()
 
 def main():
