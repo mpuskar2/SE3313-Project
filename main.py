@@ -2,69 +2,68 @@ from socket import AF_INET, socket, SOCK_STREAM
 from threading import Thread
 import pygame
 
-data = ""
-usernum = ""
-current_room = 0
-isP1 = True
+# Global variables
+close = False
+isP1 = False
 isP2 = False
+run = True
 otherPMove = ""
 sendPMove = ""
 
-# get info from the server. used to get messages.
+# Receive data from the server
 def receive():
     while True:
+        global isP1, isP2
         try:
-            msg = client_socket.recv(BUFFER_SIZE).decode("utf8")  # decode msg from other clients
+            data = client_socket.recv(BUFFER_SIZE).decode("utf8")  # Decode data from other client
+            if data == "p1": # If p1 is received, this client will be p1
+                isP1 = True
+            elif data == "p2": # If p2 is received, this client will be p2
+                isP2 = True
             global otherPMove
-            otherPMove = msg
+            otherPMove = data
         except OSError:
             break
 
+# Send data to server
+def send(event=None):
+    try:
+        data = sendPMove
+        if close:  # Check if the user decides to quit
+            client_socket.send(bytes("shutdown", "utf8"))
+            client_socket.close()  # Close client thread on server
+            return
+        client_socket.send(bytes(data, "utf8"))
+    except:
+        print("No response from server, closing game")
+        global run
+        run = False
 
-def send(event=None):  # binder passes event
-    msg = sendPMove
-    username = usernum
-    if msg == "{quit}":  # check if the user decides to quit, if so, clean up
-        client_socket.send(bytes(username + " terminated their client (thread)", "utf8"))
-        client_socket.close()  # closes client thread on server.
-        return
-    client_socket.send(bytes(msg, "utf8"))
-    # server handle our message.
-
-# send quit message to the server
+# Send quit message to the server
 def on_closing(event=None):
-    # Send server quit message.
-    global data
-    data = "{quit}"
+    global close
+    close = True
     send()
 
-def set_room():
-    global current_room
-    current_room = "1"
-    client_socket.send(bytes("/" + current_room, "utf8"))   # send msg to server to change our room
-    print("Joining room " + str(current_room) + "...")  # tell user new room
-
-# Socket with given server parameters.
+# Socket with server parameters
 HOST = "127.0.0.1"
 PORT = 3005
 BUFFER_SIZE = 1024
 ADDR = (HOST, PORT)
 
+# Create connection to server
 client_socket = socket(AF_INET, SOCK_STREAM)
 client_socket.connect(ADDR)
 
-# get number of rooms from the server and list them for the client
+# Get welcome message from the server
 first_msg = client_socket.recv(BUFFER_SIZE).decode("utf8")
-number_of_rooms = int(first_msg)
-print(number_of_rooms)
+print(first_msg)
 
-set_room()
-
+# Create thread for receiving data from the server
 receive_thread = Thread(target=receive)
 receive_thread.start()
 
-
-# game code
+# Game code
 pygame.init()
 FPS = 60
 WIDTH, HEIGHT = 700, 500
@@ -211,7 +210,7 @@ def handle_paddle_movement(keys, p1, p2):
             send()
 
 def main():
-    run = True
+    global run
     clock = pygame.time.Clock()
     p1 = Paddle(10, HEIGHT // 2 - PADDLE_HEIGHT // 2, PADDLE_WIDTH, PADDLE_HEIGHT)
     p2 = Paddle(WIDTH - (PADDLE_WIDTH + 10), HEIGHT // 2 - PADDLE_HEIGHT // 2, PADDLE_WIDTH, PADDLE_HEIGHT)
@@ -260,6 +259,7 @@ def main():
             p1_score = 0
             p2_score = 0
 
+    on_closing()
     pygame.quit()
 
 if __name__ == '__main__':

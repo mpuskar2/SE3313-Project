@@ -7,6 +7,7 @@
 #include <list>
 #include <vector>
 #include <thread>
+#include <cmath>
 
 using namespace Sync;
 
@@ -50,26 +51,29 @@ public:
 
     virtual long ThreadMain()
     {
-
-
-		// Move top two lines into the try block to see error message
-
 		try {
-		// Parse the integer value of the port number to a string.
-		std::string stringPort = std::to_string(port);
-
-		// Semaphore generated on each socket thread by referencing port number as the name.
-		//Semaphore clientBlock(stringPort);
-
-
 			// Attempt to gather bytestream data.
-			socket.Read(data);
+			// socket.Read(data);
 
-			std::string chatRoomString = data.ToString();
-			//std::cout << chatRoomString << std::endl; // print data to console
-			chatRoomString = chatRoomString.substr(1, chatRoomString.size() - 1);
-			chatRoomNum = std::stoi(chatRoomString);
+			// std::string chatRoomString = data.ToString();
+			// std::cout << socketThreadHolder.size() << std::endl; // print data to console
+			// chatRoomString = chatRoomString.substr(1, chatRoomString.size() - 1);
+			// chatRoomNum = std::stoi(chatRoomString);
+
+			chatRoomNum = ceil(socketThreadHolder.size() / 2.0);
+			std::cout << socketThreadHolder.size() << std::endl;
 			std::cout << "Current chat room number from socket.Read(): " << chatRoomNum << std::endl;	//send this on first connect
+
+			if (socketThreadHolder.size() % 2 == 0) {
+				Socket &clientSocket = this->GetSocket();
+				ByteArray playerNum("p2");
+				clientSocket.Write(playerNum);
+			}
+			else {
+				Socket &clientSocket = this->GetSocket();
+				ByteArray playerNum("p1");
+				clientSocket.Write(playerNum);
+			}
 
 			while(!exitBool) {
 				int socketResult = socket.Read(data);
@@ -77,16 +81,10 @@ public:
 				if (socketResult == 0)	break;
 
 				std::string recv = data.ToString();
-				//std::cout << recv << std::endl; // print data to console
-				if(recv == "shutdown\n") {
-					// client wait outside critical section
-					//clientBlock.Wait();
+				if(recv == "shutdown") {
 
-					//remove threads
+					// Remove threads
 					socketThreadHolder.erase(std::remove(socketThreadHolder.begin(), socketThreadHolder.end(), this), socketThreadHolder.end());
-
-					// Exit critical section
-					//clientBlock.Signal();
 
 					std::cout<< "A client is shutting off from our server. Erase client!" << std::endl;
 					break;
@@ -103,8 +101,6 @@ public:
 					continue;
 				}
 
-				// Call the semaphore blocking call so that the thread can enter the critical section.
-				//clientBlock.Wait();
 				for (int i = 0; i < socketThreadHolder.size(); i++) {
 					SocketThread *clientSocketThread = socketThreadHolder[i];
 					if (clientSocketThread->GetChatRoom() == chatRoomNum && this != clientSocketThread)
@@ -114,13 +110,8 @@ public:
 						clientSocket.Write(sendBa);
 					}
 				}
-				// Exit critical section.
-				//clientBlock.Signal();
 			}
 		} 
-		// catch (...) {
-		// 	// Catch all exceptions
-		// }
 		// catch any exceptions by strings 
 		catch(std::string &s) {
 			std::cout << s << std::endl;
@@ -182,17 +173,15 @@ public:
                 std::string stringPortNum = std::to_string(port);
                 std::cout << "FlexWait/Natural blocking call on client!" <<std::endl;
 
-				//owner semaphore used to block other sempahores
-                //Semaphore serverBlock(stringPortNum, 1, true);
-				// client receives # rooms thru the socket (server)
-                std::string allChats = std::to_string(rooms) + '\n';
-				// Byte array conversion for number of chats.
-                ByteArray allChats_conv(allChats); 
+				// client receives welcome message through the socket (server)
+				std::string welcomeMessage = "Welcome, connection to server successful!";
+				// Byte array conversion for message
+                ByteArray welcomeMessage_conv(welcomeMessage);
                 // Wait for a client socket connection
                 Socket sock = server.Accept();
 
-				// Send number of chats.
-                sock.Write(allChats_conv);
+				// Send welcome message
+                sock.Write(welcomeMessage_conv);
                 Socket* newConnection = new Socket(sock);
                 // Pass a reference to this pointer into a new socket thread.
                 Socket &socketReference = *newConnection;
